@@ -4,10 +4,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     const btnLogout = document.getElementById("btnLogout");
 
-    if (!btnLogout) {
-      console.warn("No se encontró #btnLogout en esta página");
-      return;
-    }
+    if (!btnLogout) return;
 
     btnLogout.addEventListener("click", async (e) => {
       e.preventDefault();
@@ -26,4 +23,4 @@
         alert("No se pudo cerrar sesión.");
       }
     });
-  });;;;
+  });
