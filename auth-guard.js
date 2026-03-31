@@ -1,24 +1,46 @@
-    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { auth } from "./firebase-config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-    const firebaseConfig = {
-    apiKey: "AIzaSyD7I29Q12YILYAEyfc2JPnIGn1mr97YDH0",
-    authDomain: "ficha-social-427a1.firebaseapp.com",
-    projectId: "ficha-social-427a1",
-    storageBucket: "ficha-social-427a1.firebasestorage.app",
-    messagingSenderId: "793852990137",
-    appId: "1:793852990137:web:a084b1e1bad17409dfc168"
-    };
+    const ADMIN_UIDS = new Set([
+    "FWqjOlSz4HOyR7ZDjPCVL6t6iUp2",
+    "bFsNvjtDXyZolGITD5KeZnBpE2B3"
+    ]);
 
-    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    const ADMIN_SESSION_KEY = "adminAuthenticated";
 
-    console.log("auth-guard cargado");
-
-    onAuthStateChanged(auth, (user) => {
-    console.log("auth-guard user:", user);
+    onAuthStateChanged(auth, async (user) => {
+    const isAdminValidated = sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
 
     if (!user) {
-        window.location.href = "index.html";
+        window.location.replace("index.html");
+        return;
+    }
+
+    if (!ADMIN_UIDS.has(user.uid)) {
+        try {
+        await signOut(auth);
+        } catch (error) {
+        console.warn("No se pudo cerrar sesión de usuario no autorizado:", error);
+        }
+
+        sessionStorage.removeItem("adminAuthenticated");
+        sessionStorage.removeItem("colaboradorValidated");
+        sessionStorage.removeItem("colaboradorFichaId");
+        sessionStorage.removeItem("colaboradorEmail");
+        sessionStorage.removeItem("colaboradorNombre");
+
+        window.location.replace("index.html");
+        return;
+    }
+
+    if (!isAdminValidated) {
+        try {
+        await signOut(auth);
+        } catch (error) {
+        console.warn("No se pudo cerrar sesión por validación faltante:", error);
+        }
+
+        sessionStorage.removeItem("adminAuthenticated");
+        window.location.replace("index.html");
     }
     });
