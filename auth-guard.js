@@ -8,8 +8,14 @@
 
     const ADMIN_SESSION_KEY = "adminAuthenticated";
 
+    let firstCheckDone = false;
+
     onAuthStateChanged(auth, async (user) => {
     const isAdminValidated = sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
+
+    if (!firstCheckDone) {
+        firstCheckDone = true;
+    }
 
     if (!user) {
         window.location.replace("index.html");
@@ -23,12 +29,7 @@
         console.warn("No se pudo cerrar sesión de usuario no autorizado:", error);
         }
 
-        sessionStorage.removeItem("adminAuthenticated");
-        sessionStorage.removeItem("colaboradorValidated");
-        sessionStorage.removeItem("colaboradorFichaId");
-        sessionStorage.removeItem("colaboradorEmail");
-        sessionStorage.removeItem("colaboradorNombre");
-
+        clearAdminSession();
         window.location.replace("index.html");
         return;
     }
@@ -40,7 +41,15 @@
         console.warn("No se pudo cerrar sesión por validación faltante:", error);
         }
 
-        sessionStorage.removeItem("adminAuthenticated");
+        clearAdminSession();
         window.location.replace("index.html");
     }
     });
+
+    function clearAdminSession() {
+    sessionStorage.removeItem("adminAuthenticated");
+    sessionStorage.removeItem("colaboradorValidated");
+    sessionStorage.removeItem("colaboradorFichaId");
+    sessionStorage.removeItem("colaboradorEmail");
+    sessionStorage.removeItem("colaboradorNombre");
+    }
