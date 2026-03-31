@@ -134,24 +134,90 @@
                     <!-- tabs -->
                     <div class="flex rounded-lg bg-surface-container p-1 mb-6 gap-1">
                         <button
-                            id="tabAdmin"
+                            id="tabWorker"
                             type="button"
                             class="flex-1 py-2 px-3 rounded-md text-sm font-label transition-all duration-200 bg-surface-container-lowest text-primary font-semibold"
                         >
-                            Administrador
+                            Colaborador
                         </button>
 
                         <button
-                            id="tabWorker"
+                            id="tabAdmin"
                             type="button"
                             class="flex-1 py-2 px-3 rounded-md text-sm font-label transition-all duration-200 text-on-surface-variant"
                         >
-                            Colaborador
+                            Administrador
                         </button>
                     </div>
 
+                    <!-- colaborador -->
+                    <div id="panelWorker">
+                        <form id="workerForm" autocomplete="on" class="space-y-5">
+
+                            <div class="space-y-1.5">
+                                <label class="font-label text-sm font-semibold text-on-surface ml-1" for="workerEmail">
+                                    Correo registrado
+                                </label>
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[19px]">
+                                        mail
+                                    </span>
+                                    <input
+                                        id="workerEmail"
+                                        name="workerEmail"
+                                        type="email"
+                                        placeholder="Ingresa tu correo registrado"
+                                        autocomplete="username"
+                                        inputmode="email"
+                                        autocapitalize="off"
+                                        autocorrect="off"
+                                        spellcheck="false"
+                                        class="w-full pl-11 pr-4 py-2.5 bg-surface-container-highest border-none rounded-xl
+                                            focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest
+                                            transition-all duration-200 text-sm text-on-surface placeholder:text-outline/60"
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="font-label text-sm font-semibold text-on-surface ml-1" for="workerDni">
+                                    DNI
+                                </label>
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[19px]">
+                                        badge
+                                    </span>
+                                    <input
+                                        id="workerDni"
+                                        name="workerDni"
+                                        type="text"
+                                        inputmode="numeric"
+                                        maxlength="8"
+                                        placeholder="Ingresa tu DNI"
+                                        autocomplete="off"
+                                        autocapitalize="off"
+                                        autocorrect="off"
+                                        spellcheck="false"
+                                        class="w-full pl-11 pr-4 py-2.5 bg-surface-container-highest border-none rounded-xl
+                                            focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest
+                                            transition-all duration-200 text-sm text-on-surface placeholder:text-outline/60"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                id="btnWorkerLogin"
+                                type="submit"
+                                class="w-full btn-gradient text-white py-3 rounded-full font-headline font-bold text-base tracking-wide
+                                    hover:opacity-90 active:scale-[0.98] transition-all duration-200 soft-shadow mt-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                Continuar
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- admin -->
-                    <div id="panelAdmin">
+                    <div id="panelAdmin" class="hidden">
                         <form id="loginForm" autocomplete="on" class="space-y-5">
 
                             <div class="space-y-1.5">
@@ -225,72 +291,6 @@
                                     hover:opacity-90 active:scale-[0.98] transition-all duration-200 soft-shadow mt-3 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 Iniciar sesión
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- colaborador -->
-                    <div id="panelWorker" class="hidden">
-                        <form id="workerForm" autocomplete="on" class="space-y-5">
-
-                            <div class="space-y-1.5">
-                                <label class="font-label text-sm font-semibold text-on-surface ml-1" for="workerEmail">
-                                    Correo registrado
-                                </label>
-                                <div class="relative">
-                                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[19px]">
-                                        mail
-                                    </span>
-                                    <input
-                                        id="workerEmail"
-                                        name="workerEmail"
-                                        type="email"
-                                        placeholder="Ingresa tu correo registrado"
-                                        autocomplete="username"
-                                        inputmode="email"
-                                        autocapitalize="off"
-                                        autocorrect="off"
-                                        spellcheck="false"
-                                        class="w-full pl-11 pr-4 py-2.5 bg-surface-container-highest border-none rounded-xl
-                                            focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest
-                                            transition-all duration-200 text-sm text-on-surface placeholder:text-outline/60"
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="space-y-1.5">
-                                <label class="font-label text-sm font-semibold text-on-surface ml-1" for="workerDni">
-                                    DNI
-                                </label>
-                                <div class="relative">
-                                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[19px]">
-                                        badge
-                                    </span>
-                                    <input
-                                        id="workerDni"
-                                        name="workerDni"
-                                        type="text"
-                                        inputmode="numeric"
-                                        maxlength="8"
-                                        placeholder="Ingresa tu DNI"
-                                        autocomplete="off"
-                                        autocapitalize="off"
-                                        autocorrect="off"
-                                        spellcheck="false"
-                                        class="w-full pl-11 pr-4 py-2.5 bg-surface-container-highest border-none rounded-xl
-                                            focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest
-                                            transition-all duration-200 text-sm text-on-surface placeholder:text-outline/60"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                id="btnWorkerLogin"
-                                type="submit"
-                                class="w-full btn-gradient text-white py-3 rounded-full font-headline font-bold text-base tracking-wide
-                                    hover:opacity-90 active:scale-[0.98] transition-all duration-200 soft-shadow mt-3 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                Continuar
                             </button>
                         </form>
                     </div>
@@ -379,6 +379,9 @@
 
             tabAdmin?.addEventListener("click", () => activateTab("admin"));
             tabWorker?.addEventListener("click", () => activateTab("worker"));
+
+            // Estado inicial: colaborador
+            activateTab("worker");
         </script>
 
     </body>
