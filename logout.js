@@ -26,4 +26,4 @@
         alert("No se pudo cerrar sesión.");
       }
     });
-  });
+  });;;;
