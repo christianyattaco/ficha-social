@@ -2,7 +2,9 @@
     signInWithEmailAndPassword,
     signInAnonymously,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    setPersistence,
+    inMemoryPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     import {
@@ -20,7 +22,7 @@
     "bFsNvjtDXyZolGITD5KeZnBpE2B3"
     ]);
 
-    const $ = (s) => document.querySelector(s);
+    const $ = (selector) => document.querySelector(selector);
 
     const msg = $("#msg");
 
@@ -36,32 +38,89 @@
     const workerDniEl = $("#workerDni");
     const btnWorkerLogin = $("#btnWorkerLogin");
 
+    // claves de sesión por pestaña
+    const ADMIN_SESSION_KEY = "adminAuthenticated";
+    const WORKER_SESSION_KEY = "colaboradorValidated";
+    const WORKER_FICHA_KEY = "colaboradorFichaId";
+    const WORKER_EMAIL_KEY = "colaboradorEmail";
+    const WORKER_NAME_KEY = "colaboradorNombre";
+
+    boot();
+
+    async function boot() {
+    try {
+        await setPersistence(auth, inMemoryPersistence);
+    } catch (error) {
+        console.error("No se pudo configurar la persistencia en memoria:", error);
+    }
+
+    await purgeUnexpectedSession();
+    bindEvents();
+    setupAuthWatcher();
+    }
+
     /* =========================
-    CONTROL DE SESIÓN
+    INICIO SEGURO
     ========================= */
-    onAuthStateChanged(auth, (user) => {
-    const colaboradorFichaId = sessionStorage.getItem("colaboradorFichaId");
+    async function purgeUnexpectedSession() {
+    try {
+        const hasAdminSession = sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
+        const hasWorkerSession = sessionStorage.getItem(WORKER_SESSION_KEY) === "true";
 
-    // Si es admin autenticado, va a fichas.html
-    if (user && ADMIN_UIDS.has(user.uid)) {
-        location.href = "fichas.html";
-        return;
+        if (auth.currentUser && !hasAdminSession && !hasWorkerSession) {
+        await signOut(auth);
+        }
+    } catch (error) {
+        console.warn("No se pudo limpiar la sesión previa:", error);
+    }
     }
 
-    // Si hay sesión y además hay ficha de colaborador guardada, entra a usuarios.html
-    if (user && colaboradorFichaId) {
-        location.href = `usuarios.html?id=${encodeURIComponent(colaboradorFichaId)}`;
-    }
+    function bindEvents() {
+    adminForm?.addEventListener("submit", handleAdminLogin);
+    workerForm?.addEventListener("submit", handleWorkerLogin);
+
+    workerDniEl?.addEventListener("input", () => {
+        workerDniEl.value = workerDniEl.value.replace(/\D/g, "").slice(0, 8);
     });
+    }
+
+    function setupAuthWatcher() {
+    onAuthStateChanged(auth, async (user) => {
+        const isAdminValidated = sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
+        const isWorkerValidated = sessionStorage.getItem(WORKER_SESSION_KEY) === "true";
+        const colaboradorFichaId = sessionStorage.getItem(WORKER_FICHA_KEY);
+
+        if (!user) return;
+
+        // admin
+        if (ADMIN_UIDS.has(user.uid)) {
+        if (isAdminValidated) {
+            location.href = "fichas.html";
+        } else {
+            await safeFullSignOut();
+        }
+        return;
+        }
+
+        // colaborador
+        if (user.isAnonymous) {
+        if (isWorkerValidated && colaboradorFichaId) {
+            location.href = `usuarios.html?id=${encodeURIComponent(colaboradorFichaId)}`;
+        } else {
+            await safeFullSignOut();
+        }
+        }
+    });
+    }
 
     /* =========================
     LOGIN ADMIN
     ========================= */
-    adminForm?.addEventListener("submit", async (e) => {
+    async function handleAdminLogin(e) {
     e.preventDefault();
     clearMsg();
 
-    const email = (emailEl?.value || "").trim();
+    const email = (emailEl?.value || "").trim().toLowerCase();
     const password = passEl?.value || "";
 
     if (!email || !password) {
@@ -72,38 +131,32 @@
     setAdminLoading(true);
 
     try {
-        // limpiar sesión previa de colaborador
-        sessionStorage.removeItem("colaboradorFichaId");
-        sessionStorage.removeItem("colaboradorEmail");
-        sessionStorage.removeItem("colaboradorNombre");
-
-        // si hubiera sesión anónima previa, la cerramos antes
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-        await signOut(auth);
-        }
+        clearAllSessionFlags();
+        await safeFullSignOut();
 
         const cred = await signInWithEmailAndPassword(auth, email, password);
         const user = cred.user;
 
         if (!ADMIN_UIDS.has(user.uid)) {
-        await signOut(auth);
+        await safeFullSignOut();
         setMsg("Tu usuario no tiene acceso administrativo.");
         return;
         }
 
+        sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
         location.href = "fichas.html";
-    } catch (e) {
-        console.error("Error login admin:", e);
-        setMsg("Correo o contraseña incorrectos.");
+    } catch (error) {
+        console.error("Error en login admin:", error);
+        setMsg(getFirebaseLoginMessage(error));
     } finally {
         setAdminLoading(false);
     }
-    });
+    }
 
     /* =========================
     LOGIN COLABORADOR
     ========================= */
-    workerForm?.addEventListener("submit", async (e) => {
+    async function handleWorkerLogin(e) {
     e.preventDefault();
     clearMsg();
 
@@ -123,23 +176,10 @@
     setWorkerLoading(true);
 
     try {
-        console.log("Validando colaborador...");
+        clearAllSessionFlags();
+        await safeFullSignOut();
 
-        // limpiar posibles datos anteriores
-        sessionStorage.removeItem("colaboradorFichaId");
-        sessionStorage.removeItem("colaboradorEmail");
-        sessionStorage.removeItem("colaboradorNombre");
-
-        // si hay un admin logueado, lo cerramos
-        if (auth.currentUser && !auth.currentUser.isAnonymous) {
-        await signOut(auth);
-        }
-
-        // si no hay sesión, autenticamos anónimamente al colaborador
-        if (!auth.currentUser) {
         await signInAnonymously(auth);
-        console.log("Colaborador autenticado anónimamente");
-        }
 
         const q = query(
         collection(db, "fichas"),
@@ -149,71 +189,74 @@
 
         const snap = await getDocs(q);
 
-        console.log("Fichas encontradas por correo:", snap.size);
-
         if (snap.empty) {
-        await safeSignOutAnonymous();
+        await safeFullSignOut();
         setMsg("No se encontró una ficha asociada a ese correo.");
         return;
         }
 
         let match = null;
 
-        snap.forEach((d) => {
-        const data = d.data();
+        snap.forEach((docSnap) => {
+        const data = docSnap.data();
         const correoFicha = String(data?.contacto?.correo || "").trim().toLowerCase();
         const dniFicha = String(data?.personal?.doc || "").trim();
 
-        console.log("Comparando con ficha:", d.id, {
-            correo: correoFicha,
-            dni: dniFicha,
-            activo: data?.meta?.activo
-        });
-
         if (correoFicha === email && dniFicha === dni) {
-            match = { id: d.id, ...data };
+            match = {
+            id: docSnap.id,
+            ...data
+            };
         }
         });
 
         if (!match) {
-        await safeSignOutAnonymous();
+        await safeFullSignOut();
         setMsg("Se encontró el correo, pero el DNI no coincide.");
         return;
         }
 
         if (match?.meta?.activo === false) {
-        await safeSignOutAnonymous();
+        await safeFullSignOut();
         setMsg("Tu ficha se encuentra inactiva. Comunícate con Bienestar Social.");
         return;
         }
 
-        sessionStorage.setItem("colaboradorFichaId", match.id);
-        sessionStorage.setItem("colaboradorEmail", email);
+        sessionStorage.setItem(WORKER_SESSION_KEY, "true");
+        sessionStorage.setItem(WORKER_FICHA_KEY, match.id);
+        sessionStorage.setItem(WORKER_EMAIL_KEY, email);
         sessionStorage.setItem(
-        "colaboradorNombre",
+        WORKER_NAME_KEY,
         `${match?.personal?.nombres || ""} ${match?.personal?.apellidos || ""}`.trim()
         );
 
         location.href = `usuarios.html?id=${encodeURIComponent(match.id)}`;
-    } catch (e) {
-        console.error("Error login colaborador:", e);
-        setMsg(`Error: ${e.code || e.message || "desconocido"}`);
+    } catch (error) {
+        console.error("Error en login colaborador:", error);
+        await safeFullSignOut();
+        setMsg("No se pudo validar el acceso. Intenta nuevamente.");
     } finally {
         setWorkerLoading(false);
     }
-    });
+    }
 
     /* =========================
-    HELPERS AUTH
+    HELPERS DE SESIÓN
     ========================= */
-    async function safeSignOutAnonymous() {
+    async function safeFullSignOut() {
     try {
-        if (auth.currentUser?.isAnonymous) {
         await signOut(auth);
-        }
-    } catch (err) {
-        console.warn("No se pudo cerrar sesión anónima:", err);
+    } catch (error) {
+        console.warn("No se pudo cerrar sesión:", error);
     }
+    }
+
+    function clearAllSessionFlags() {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    sessionStorage.removeItem(WORKER_SESSION_KEY);
+    sessionStorage.removeItem(WORKER_FICHA_KEY);
+    sessionStorage.removeItem(WORKER_EMAIL_KEY);
+    sessionStorage.removeItem(WORKER_NAME_KEY);
     }
 
     /* =========================
@@ -227,22 +270,43 @@
     setMsg("");
     }
 
-    function setAdminLoading(on) {
+    function setAdminLoading(isLoading) {
     if (!btnLogin) return;
 
-    btnLogin.disabled = on;
-    if (emailEl) emailEl.disabled = on;
-    if (passEl) passEl.disabled = on;
+    btnLogin.disabled = isLoading;
+    if (emailEl) emailEl.disabled = isLoading;
+    if (passEl) passEl.disabled = isLoading;
 
-    btnLogin.textContent = on ? "Validando acceso..." : "Iniciar sesión";
+    btnLogin.textContent = isLoading ? "Validando acceso..." : "Iniciar sesión";
     }
 
-    function setWorkerLoading(on) {
+    function setWorkerLoading(isLoading) {
     if (!btnWorkerLogin) return;
 
-    btnWorkerLogin.disabled = on;
-    if (workerEmailEl) workerEmailEl.disabled = on;
-    if (workerDniEl) workerDniEl.disabled = on;
+    btnWorkerLogin.disabled = isLoading;
+    if (workerEmailEl) workerEmailEl.disabled = isLoading;
+    if (workerDniEl) workerDniEl.disabled = isLoading;
 
-    btnWorkerLogin.textContent = on ? "Validando..." : "Continuar";
+    btnWorkerLogin.textContent = isLoading ? "Validando..." : "Continuar";
+    }
+
+    function getFirebaseLoginMessage(error) {
+    const code = error?.code || "";
+
+    switch (code) {
+        case "auth/invalid-email":
+        return "El correo ingresado no es válido.";
+        case "auth/user-disabled":
+        return "Esta cuenta ha sido deshabilitada.";
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential":
+        return "Correo o contraseña incorrectos.";
+        case "auth/too-many-requests":
+        return "Demasiados intentos. Intenta nuevamente en unos minutos.";
+        case "auth/network-request-failed":
+        return "No se pudo conectar. Verifica tu internet e intenta otra vez.";
+        default:
+        return "No se pudo iniciar sesión. Verifica tus datos.";
+    }
     }
